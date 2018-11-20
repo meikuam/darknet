@@ -187,7 +187,7 @@ void backward_convolutional_layer_gpu(convolutional_layer l, network net)
 
     if(l.batch_normalize){
         backward_batchnorm_layer_gpu(l, net);
-    } else if (have_bias) {
+    } else if (l.have_bias) {
         backward_bias_gpu(l.bias_updates_gpu, l.delta_gpu, l.batch, l.n, l.out_w*l.out_h);
     }
     float *original_input = net.input_gpu;
