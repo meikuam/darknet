@@ -134,6 +134,7 @@ struct layer{
     int outputs;
     int nweights;
     int nbiases;
+    int have_bias;
     int extra;
     int truths;
     int h,w,c;

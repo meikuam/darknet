@@ -173,7 +173,7 @@ void cudnn_convolutional_setup(layer *l)
 #endif
 #endif
 
-convolutional_layer make_convolutional_layer(int batch, int h, int w, int c, int n, int groups, int size, int stride, int padding, ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam)
+convolutional_layer make_convolutional_layer(int batch, int h, int w, int c, int n, int groups, int size, int stride, int padding, ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam, int have_bias)
 {
     int i;
     convolutional_layer l = {0};
@@ -184,6 +184,7 @@ convolutional_layer make_convolutional_layer(int batch, int h, int w, int c, int
     l.w = w;
     l.c = c;
     l.n = n;
+    l.have_bias = have_bias;
     l.binary = binary;
     l.xnor = xnor;
     l.batch = batch;
@@ -195,8 +196,10 @@ convolutional_layer make_convolutional_layer(int batch, int h, int w, int c, int
     l.weights = calloc(c/groups*n*size*size, sizeof(float));
     l.weight_updates = calloc(c/groups*n*size*size, sizeof(float));
 
-    l.biases = calloc(n, sizeof(float));
-    l.bias_updates = calloc(n, sizeof(float));
+    if (have_bias) {
+        l.biases = calloc(n, sizeof(float));
+        l.bias_updates = calloc(n, sizeof(float));
+    }
 
     l.nweights = c/groups*n*size*size;
     l.nbiases = n;
@@ -276,8 +279,10 @@ convolutional_layer make_convolutional_layer(int batch, int h, int w, int c, int
         l.weights_gpu = cuda_make_array(l.weights, l.nweights);
         l.weight_updates_gpu = cuda_make_array(l.weight_updates, l.nweights);
 
-        l.biases_gpu = cuda_make_array(l.biases, n);
-        l.bias_updates_gpu = cuda_make_array(l.bias_updates, n);
+        if (have_bias) {
+            l.biases_gpu = cuda_make_array(l.biases, n);
+            l.bias_updates_gpu = cuda_make_array(l.bias_updates, n);
+        }
 
         l.delta_gpu = cuda_make_array(l.delta, l.batch*out_h*out_w*n);
         l.output_gpu = cuda_make_array(l.output, l.batch*out_h*out_w*n);
@@ -476,7 +481,7 @@ void forward_convolutional_layer(convolutional_layer l, network net)
 
     if(l.batch_normalize){
         forward_batchnorm_layer(l, net);
-    } else {
+    } else if (l.have_bias) {
         add_bias(l.output, l.biases, l.batch, l.n, l.out_h*l.out_w);
     }
 
@@ -495,7 +500,7 @@ void backward_convolutional_layer(convolutional_layer l, network net)
 
     if(l.batch_normalize){
         backward_batchnorm_layer(l, net);
-    } else {
+    } else if (l.have_bias) {
         backward_bias(l.bias_updates, l.delta, l.batch, l.n, k);
     }
 
@@ -542,8 +547,10 @@ void update_convolutional_layer(convolutional_layer l, update_args a)
     float decay = a.decay;
     int batch = a.batch;
 
-    axpy_cpu(l.n, learning_rate/batch, l.bias_updates, 1, l.biases, 1);
-    scal_cpu(l.n, momentum, l.bias_updates, 1);
+    if (l.have_bias) {
+        axpy_cpu(l.n, learning_rate / batch, l.bias_updates, 1, l.biases, 1);
+        scal_cpu(l.n, momentum, l.bias_updates, 1);
+    }
 
     if(l.scales){
         axpy_cpu(l.n, learning_rate/batch, l.scale_updates, 1, l.scales, 1);
