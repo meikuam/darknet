@@ -151,7 +151,9 @@ void forward_batchnorm_layer(layer l, network net)
         normalize_cpu(l.output, l.rolling_mean, l.rolling_variance, l.batch, l.out_c, l.out_h*l.out_w);
     }
     scale_bias(l.output, l.scales, l.batch, l.out_c, l.out_h*l.out_w);
-    add_bias(l.output, l.biases, l.batch, l.out_c, l.out_h*l.out_w);
+    if (l.have_bias) {
+        add_bias(l.output, l.biases, l.batch, l.out_c, l.out_h * l.out_w);
+    }
 }
 
 void backward_batchnorm_layer(layer l, network net)
@@ -160,7 +162,9 @@ void backward_batchnorm_layer(layer l, network net)
         l.mean = l.rolling_mean;
         l.variance = l.rolling_variance;
     }
-    backward_bias(l.bias_updates, l.delta, l.batch, l.out_c, l.out_w*l.out_h);
+    if (l.have_bias) {
+        backward_bias(l.bias_updates, l.delta, l.batch, l.out_c, l.out_w * l.out_h);
+    }
     backward_scale_cpu(l.x_norm, l.delta, l.batch, l.out_c, l.out_w*l.out_h, l.scale_updates);
 
     scale_bias(l.delta, l.scales, l.batch, l.out_c, l.out_h*l.out_w);
@@ -225,12 +229,16 @@ void forward_batchnorm_layer_gpu(layer l, network net)
         copy_gpu(l.outputs*l.batch, l.output_gpu, 1, l.x_norm_gpu, 1);
 
         scale_bias_gpu(l.output_gpu, l.scales_gpu, l.batch, l.out_c, l.out_h*l.out_w);
-        add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.out_c, l.out_w*l.out_h);
+        if (l.have_bias) {
+            add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.out_c, l.out_w*l.out_h);
+        }
 #endif
     } else {
         normalize_gpu(l.output_gpu, l.rolling_mean_gpu, l.rolling_variance_gpu, l.batch, l.out_c, l.out_h*l.out_w);
         scale_bias_gpu(l.output_gpu, l.scales_gpu, l.batch, l.out_c, l.out_h*l.out_w);
-        add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.out_c, l.out_w*l.out_h);
+        if (l.have_bias) {
+            add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.out_c, l.out_w*l.out_h);
+        }
     }
 
 }
@@ -265,7 +273,9 @@ void backward_batchnorm_layer_gpu(layer l, network net)
             l.variance_gpu);
     copy_gpu(l.outputs*l.batch, l.x_norm_gpu, 1, l.delta_gpu, 1);
 #else
-    backward_bias_gpu(l.bias_updates_gpu, l.delta_gpu, l.batch, l.out_c, l.out_w*l.out_h);
+    if (l.have_bias) {
+        backward_bias_gpu(l.bias_updates_gpu, l.delta_gpu, l.batch, l.out_c, l.out_w*l.out_h);
+    }
     backward_scale_gpu(l.x_norm_gpu, l.delta_gpu, l.batch, l.out_c, l.out_w*l.out_h, l.scale_updates_gpu);
 
     scale_bias_gpu(l.delta_gpu, l.scales_gpu, l.batch, l.out_c, l.out_h*l.out_w);
