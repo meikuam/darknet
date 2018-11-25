@@ -919,7 +919,9 @@ void save_convolutional_weights_binary(layer l, FILE *fp)
     binarize_weights(l.weights, l.n, l.c*l.size*l.size, l.binary_weights);
     int size = l.c*l.size*l.size;
     int i, j, k;
-    fwrite(l.biases, sizeof(float), l.n, fp);
+    if (l.have_bias) {
+        fwrite(l.biases, sizeof(float), l.n, fp);
+    }
     if (l.batch_normalize){
         fwrite(l.scales, sizeof(float), l.n, fp);
         fwrite(l.rolling_mean, sizeof(float), l.n, fp);
@@ -953,7 +955,9 @@ void save_convolutional_weights(layer l, FILE *fp)
     }
 #endif
     int num = l.nweights;
-    fwrite(l.biases, sizeof(float), l.n, fp);
+    if (l.have_bias) {
+        fwrite(l.biases, sizeof(float), l.n, fp);
+    }
     if (l.batch_normalize){
         fwrite(l.scales, sizeof(float), l.n, fp);
         fwrite(l.rolling_mean, sizeof(float), l.n, fp);
@@ -1154,7 +1158,9 @@ void load_convolutional_weights(layer l, FILE *fp)
         //return;
     }
     int num = l.nweights;
-    fread(l.biases, sizeof(float), l.n, fp);
+    if (l.have_bias) {
+        fread(l.biases, sizeof(float), l.n, fp);
+    }
     if (l.batch_normalize && (!l.dontloadscales)){
         fread(l.scales, sizeof(float), l.n, fp);
         fread(l.rolling_mean, sizeof(float), l.n, fp);
@@ -1277,7 +1283,9 @@ void load_weights_upto(network *net, char *filename, int start, int cutoff)
         if(l.type == LOCAL){
             int locations = l.out_w*l.out_h;
             int size = l.size*l.size*l.c*l.n*locations;
-            fread(l.biases, sizeof(float), l.outputs, fp);
+            if (l.have_bias) {
+                fread(l.biases, sizeof(float), l.outputs, fp);
+            }
             fread(l.weights, sizeof(float), size, fp);
 #ifdef GPU
             if(gpu_index >= 0){
